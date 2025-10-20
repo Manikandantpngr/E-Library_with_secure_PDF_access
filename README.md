@@ -13,7 +13,7 @@ Tech stack
 Quick setup
 1. Install dependencies
 
-```powershell
+```powershell(PS)
 npm install
 ```
 
@@ -21,13 +21,13 @@ npm install
 
 3. Seed the database (creates admin/librarian/user)
 
-```powershell
+```powershell(PS)
 node seeder.js
 ```
 
 4. Start dev server
 
-```powershell
+```powershell(PS)
 npm run dev
 ```
 
