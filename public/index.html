@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>E-Library Secure PDF Access</title>
+    <style>
+      body { font-family: system-ui, Arial, sans-serif; max-width: 900px; margin: 3rem auto; line-height: 1.5; padding: 0 1rem; }
+      header { margin-bottom: 1.5rem }
+      code { background:#f3f4f6; padding:0.1rem 0.3rem; border-radius:4px }
+      a.button { display:inline-block; padding:0.5rem 0.8rem; background:#0366d6; color:white; border-radius:6px; text-decoration:none }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>E-Library — Secure PDF Access</h1>
+      <p>A minimal demo server that protects downloads and applies a per-download watermark.</p>
+    </header>
+
+    <section>
+      <h2>Quick actions</h2>
+      <ul>
+        <li>Register: <code>POST /auth/register</code></li>
+        <li>Login: <code>POST /auth/login</code></li>
+        <li>Upload book (PDF): <code>POST /upload/book</code> (multipart)</li>
+        <li>List books: <code>GET /books</code></li>
+        <li>Download (protected): <code>GET /download/:id</code></li>
+      </ul>
+      <p>Example: after login, call:</p>
+      <pre><code>curl -H "Authorization: Bearer &lt;token&gt;" http://localhost:3000/download/&lt;book_id&gt; --output book.pdf</code></pre>
+    </section>
+
+    <section>
+      <h2>Notes</h2>
+      <ul>
+        <li>Set environment variables in <code>.env</code> (see <code>.env.example</code>).</li>
+        <li>Server runs on port <code>3000</code> by default.</li>
+      </ul>
+    </section>
+
+    <footer style="margin-top:2rem;color:#555;font-size:0.9rem">
+      <div>If the page is still blank after starting the server, check the server logs.</div>
+    </footer>
+  </body>
+</html>

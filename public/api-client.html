@@ -1,0 +1,531 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>API Client - E-Library</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/normalize/8.0.1/normalize.min.css" integrity="sha512-NhSC1XKq6vY6+6q6Q5Q5b6Qm3r0yY3z3f4Q5c7Q5f4Q5c7Q5f4Q5c7Q5f4Q5c7Q5f4Q5c7Q==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <style>
+      /* Theme variables */
+      :root{
+        --accent: #2196f3; --accent-2: #3f51b5;
+        --bg: #f6f8fb; --card: #ffffff; --muted:#6b7280; --text:#0f1724;
+        --surface-shadow: 0 6px 18px rgba(12,18,35,0.06);
+        --glass: rgba(255,255,255,0.6);
+      }
+      :root.dark{
+        --bg: #0b1220; --card: #0f1724; --muted:#9aa4b2; --text:#e6f0ff; --glass: rgba(255,255,255,0.03);
+        --surface-shadow: 0 6px 24px rgba(2,6,23,0.6);
+      }
+
+      *{box-sizing:border-box}
+      body{font-family:Inter,system-ui,Segoe UI,Roboto,Arial;display:flex;min-height:100vh;margin:0;background:linear-gradient(180deg,var(--bg),transparent);color:var(--text);transition:background .4s, color .3s}
+
+      /* Layout */
+      .sidebar{width:340px;padding:1rem;box-sizing:border-box;display:flex;flex-direction:column;gap:1rem}
+      .content{flex:1;padding:1.25rem;box-sizing:border-box}
+      h2{margin:0 0 0.25rem}
+      .section{margin-bottom:1rem}
+
+      /* Panels - collapsible */
+      .panel{background:var(--card);border-radius:12px;padding:0.6rem;border:0;box-shadow:var(--surface-shadow);overflow:hidden;transition:transform .28s ease,opacity .28s ease,box-shadow .28s}
+      .panel .panel-header{display:flex;align-items:center;gap:.6rem;padding:.6rem;border-bottom:1px solid rgba(0,0,0,0.04)}
+      .panel .panel-body{padding:.8rem;transition:all .28s ease}
+      .panel.collapsed .panel-body{height:0;padding:0 .8rem;opacity:0;transform:translateY(-6px)}
+
+      /* Buttons */
+      .btn{background:linear-gradient(90deg,var(--accent),var(--accent-2));color:#fff;padding:.6rem .8rem;border-radius:10px;border:0;cursor:pointer;display:inline-flex;align-items:center;gap:.5rem;box-shadow:0 6px 16px rgba(33,150,243,0.18);transition:transform .18s ease,box-shadow .18s,filter .18s}
+      .btn:focus{outline:3px solid rgba(33,150,243,0.16);outline-offset:2px}
+      .btn:hover{transform:translateY(-4px);box-shadow:0 12px 28px rgba(33,150,243,0.2)}
+      .btn.secondary{background:linear-gradient(90deg,#f3f4f6,#ffffff);color:var(--text);box-shadow:none;border:1px solid rgba(0,0,0,0.04)}
+
+      /* Fields */
+      input,select,textarea{font:inherit;padding:.5rem .6rem;border-radius:8px;border:1px solid rgba(15,23,36,0.06);background:var(--glass);color:var(--text);transition:box-shadow .18s,transform .18s}
+      input:focus,select:focus,textarea:focus{box-shadow:0 6px 20px rgba(33,150,243,0.08);outline:none;transform:translateY(-1px)}
+
+      .field{display:flex;gap:.6rem;align-items:center;margin:.45rem 0}
+      .field input, .field select {flex:1}
+
+      .token{word-break:break-all;padding:.6rem;border-radius:10px;border:1px dashed rgba(0,0,0,0.06);background:linear-gradient(180deg,rgba(255,255,255,0.6),rgba(255,255,255,0.4));}
+
+      .topbar{display:flex;gap:.8rem;align-items:center;margin-bottom:1rem}
+      .row{display:flex;gap:.6rem}
+
+      .flex{display:flex;gap:1rem}
+      .left{flex:1}
+      .right{width:460px}
+
+      pre{white-space:pre-wrap;word-break:break-word;background:linear-gradient(180deg,#071029,#0b1626);color:#e6f0ff;padding:1rem;border-radius:10px;overflow:auto;font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, monospace}
+      .small{font-size:.9rem;color:var(--muted)}
+
+      /* Cards & list */
+      .list-card{padding:.6rem;border-radius:10px;background:var(--card);box-shadow:var(--surface-shadow);transition:transform .22s,box-shadow .22s,opacity .3s;margin-bottom:.5rem}
+      .list-card:hover{transform:translateY(-6px)}
+
+      /* History rows */
+      .history-row{display:flex;justify-content:space-between;align-items:center;padding:.5rem;border-radius:8px;transition:background .2s,transform .18s}
+      .history-row:nth-child(odd){background:linear-gradient(90deg,rgba(0,0,0,0.02),transparent)}
+      .history-row:hover{background:linear-gradient(90deg,rgba(0,0,0,0.04),transparent);transform:translateX(4px)}
+
+      /* Status badges */
+      .badge{display:inline-block;padding:.2rem .5rem;border-radius:999px;font-weight:600;font-size:.8rem}
+      .badge.success{background:linear-gradient(90deg,#0ea5a4,#10b981);color:white}
+      .badge.error{background:linear-gradient(90deg,#ef4444,#dc2626);color:white}
+      .badge.warn{background:linear-gradient(90deg,#f59e0b,#f97316);color:white}
+
+      /* Spinner */
+      .spinner{width:22px;height:22px;border-radius:50%;border:3px solid rgba(255,255,255,0.15);border-top-color:var(--accent);animation:spin 1s linear infinite}
+      @keyframes spin{to{transform:rotate(360deg)}}
+
+      /* Toasts */
+      .toast-wrap{position:fixed;right:18px;bottom:18px;z-index:9999;display:flex;flex-direction:column;gap:.5rem}
+      .toast{padding:.6rem .8rem;border-radius:10px;color:white;box-shadow:0 8px 30px rgba(2,6,23,0.4);animation:toast-in .35s ease}
+      @keyframes toast-in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+      /* small utilities */
+      .muted{color:var(--muted)}
+      .collapse-toggle{cursor:pointer;display:inline-flex;align-items:center;gap:.4rem}
+      .cover-preview{height:64px;border-radius:8px;object-fit:cover;box-shadow:0 8px 20px rgba(2,6,23,0.08)}
+
+      /* accessibility */
+      .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+
+      @media (max-width:900px){.sidebar{display:none}.content{padding:.6rem}}
+    </style>
+  </head>
+  <body>
+    <div id="app">
+      <div class="sidebar">
+        <div class="panel" style="display:flex;flex-direction:column">
+          <div class="panel-header">
+            <div style="flex:1">
+              <h2 style="color: white; margin:0; background:linear-gradient(90deg,var(--accent-2),var(--accent));-webkit-background-clip:text;background-clip:text;color:transparent">API Client</h2>
+              <div class="small">Interactive dev playground</div>
+            </div>
+            <div style="display:flex;gap:.5rem;align-items:center">
+              <label class="small">Theme</label>
+              <select v-model="theme" @change="applyTheme">
+                <option value="light">Light</option>
+                <option value="dark">Dark</option>
+              </select>
+              <input type="color" v-model="accentPicker" title="Accent color" @input="setAccent" style="width:44px;height:34px;border-radius:8px;border:0;padding:0" />
+            </div>
+          </div>
+          <div class="panel-body" style="padding-top:0.4rem">
+            <div class="small">Quick settings</div>
+            <div style="display:flex;gap:.5rem;margin-top:.6rem">
+              <button class="btn" @click="togglePanel('auth')">Toggle Auth</button>
+              <button class="btn secondary" @click="togglePanel('history')">Toggle History</button>
+            </div>
+          </div>
+        </div>
+        <div :class="['panel', panels.auth ? '' : 'collapsed']">
+          <div class="panel-header">
+            <div style="flex:1"><strong>Auth</strong><div class="small">Login / token</div></div>
+            <div class="collapse-toggle" @click="togglePanel('auth')">{{ panels.auth ? '−' : '+' }}</div>
+          </div>
+          <div class="panel-body">
+            <div class="field">
+              <input v-model="authForm.email" placeholder="Email" aria-label="Email" />
+            </div>
+            <div class="field">
+              <input v-model="authForm.password" type="password" placeholder="Password" aria-label="Password" />
+            </div>
+            <div class="row">
+              <button class="btn" @click="login"><span v-if="loading.auth" class="spinner"></span> Login</button>
+              <button class="btn secondary" @click="register">Register</button>
+            </div>
+            <div style="margin-top:.6rem">
+              <div class="small">Token</div>
+              <div class="token">{{ tokenPreview }}</div>
+              <div style="margin-top:.4rem"><button class="btn secondary" @click="copyToken">Copy token</button></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header"><strong>Quick Actions</strong></div>
+          <div class="panel-body" style="display:flex;flex-direction:column;gap:.5rem">
+            <button class="btn secondary" @click="doRequest('GET','/books')">List Books</button>
+            <button class="btn secondary" @click="showCatalog=true; selectTab('catalog')">Open Catalog</button>
+          </div>
+        </div>
+
+        <div :class="['panel', panels.history ? '' : 'collapsed']">
+          <div class="panel-header">
+            <div style="flex:1"><strong>History</strong><div class="small">Recent requests</div></div>
+            <div class="collapse-toggle" @click="togglePanel('history')">{{ panels.history ? '−' : '+' }}</div>
+          </div>
+          <div class="panel-body" style="max-height:28vh;overflow:auto">
+            <div v-for="(h,idx) in history.slice().reverse()" :key="idx" class="history-row" @click="loadFromHistory(h)" style="margin-bottom:.3rem">
+              <div><strong>{{ h.method }}</strong> <span class="small">{{ h.url }}</span><div class="small">{{ h.time }}</div></div>
+            </div>
+          </div>
+        </div>
+        <div class="toast-wrap" id="toasts"></div>
+      </div>
+
+      <div class="content">
+        <div class="topbar">
+          <div class="small">User: <strong v-if="me">{{ me.email }} ({{ me.role }})</strong><span v-else>Not logged in</span></div>
+          <div style="margin-left:auto"><button class="btn secondary" @click="logout" v-if="me">Logout</button></div>
+        </div>
+
+        <div class="flex">
+          <div class="left">
+            <div class="panel">
+              <div class="panel-header"><strong>Request Composer</strong><div class="small">Build custom API requests</div></div>
+              <div class="panel-body">
+                <div class="field">
+                  <select v-model="composer.method">
+                    <option>GET</option>
+                    <option>POST</option>
+                    <option>PUT</option>
+                    <option>DELETE</option>
+                  </select>
+                  <input v-model="composer.url" placeholder="/books or /auth/login" />
+                </div>
+
+                <div class="field"><textarea v-model="composer.body" placeholder='JSON body (for POST/PUT)' rows="6"></textarea></div>
+                <div class="field">
+                  <input v-model="customHeaderKey" placeholder="Key" aria-label="Header key" />
+                  <input v-model="customHeaderValue" placeholder="Value" aria-label="Header value" />
+                  <button class="btn secondary" @click="addHeader">Add header</button>
+                </div>
+                <div v-if="Object.keys(composer.headers).length" style="margin:.5rem 0">
+                  <div v-for="(v,k) in composer.headers" :key="k" style="display:flex;align-items:center;gap:.5rem;margin:.2rem 0">
+                    <div style="flex:1"><strong>{{k}}</strong>: {{v}}</div>
+                    <button class="btn secondary" @click="removeHeader(k)">Remove</button>
+                  </div>
+                </div>
+                <div style="display:flex;gap:.5rem;margin-top:.6rem">
+                  <button class="btn" @click="sendComposer"><span v-if="loading.request" class="spinner" aria-hidden></span> Send</button>
+                  <button class="btn secondary" @click="saveToHistory">Save</button>
+                  <button class="btn secondary" @click="clearComposer">Clear</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="panel" style="margin-top:1rem">
+              <div class="panel-header"><strong>Book Catalog</strong><div class="small">Search and browse books</div></div>
+              <div class="panel-body">
+              <div style="display:flex;gap:.5rem;margin-bottom:.5rem">
+                <input v-model="catalog.q" placeholder="search title or author" />
+                <input v-model="catalog.author" placeholder="author" />
+                <input v-model="catalog.category" placeholder="category" />
+                <button class="btn" @click="fetchBooks">Search</button>
+              </div>
+              <div class="small">Pagination: Page {{ catalog.page }} | <button class="btn secondary" @click="prevPage">Prev</button> <button class="btn secondary" @click="nextPage">Next</button></div>
+              <div style="margin-top:.6rem">
+                <div v-for="b in books" :key="b._id" class="list-card" style="display:flex;justify-content:space-between;align-items:center">
+                  <div>
+                    <div style="font-weight:700">Book Title: {{ b.title }}</div>
+                    <div class="small">Author: {{ b.author }} &nbsp; Category: {{ b.category }}</div>
+                  </div>
+                  <div style="display:flex;gap:.6rem;align-items:center">
+                    <button class="btn secondary" @click="viewDetails(b)">View Details</button>
+                    <button class="btn" @click="downloadBook(b)">Download</button>
+                  </div>
+                </div>
+              </div>
+              </div>
+            </div>
+            
+            <div class="panel" style="margin-top:1rem">
+              <div class="panel-header"><strong>Edit Book</strong><div class="small">Update book metadata</div></div>
+              <div class="panel-body">
+              <div class="small">Pick a book to edit:</div>
+              <div style="display:flex;gap:.5rem;margin-top:.5rem">
+                <select v-model="editBook.selectedId" @change="fetchBookForEdit(editBook.selectedId)" style="flex:1">
+                  <option value="">-- select book --</option>
+                  <option v-for="b in editBook.options" :value="b._id">{{ b.title }} — {{ b.author }}</option>
+                </select>
+                <button class="btn" @click="loadBookOptions">Refresh list</button>
+              </div>
+
+              <div v-if="editBook.original" style="margin-top:.8rem">
+                <div class="small">Fields</div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin-top:.5rem">
+                  <input v-model="editBook.form.title" placeholder="Title" />
+                  <input v-model="editBook.form.author" placeholder="Author" />
+                  <input v-model="editBook.form.isbn" placeholder="ISBN" />
+                  <input v-model="editBook.form.category" placeholder="Category" />
+                  <input v-model="editBook.form.language" placeholder="Language" />
+                  <input v-model.number="editBook.form.publishedYear" placeholder="Published Year" />
+                  <input v-model="editBook.form.publisher" placeholder="Publisher" />
+                  <input v-model.number="editBook.form.pages" placeholder="Pages" />
+                </div>
+                <div style="margin-top:.5rem">
+                  <textarea v-model="editBook.form.description" placeholder="Description" rows="4" style="width:100%"></textarea>
+                </div>
+                <div style="margin-top:.5rem">
+                  <input v-model="editBook.form.tags" placeholder="Tags (comma separated)" />
+                </div>
+                <div style="margin-top:.5rem;display:flex;gap:.5rem;align-items:center">
+                  <input type="file" @change="onCoverSelected" accept="image/*" />
+                  <div style="display:flex;flex-direction:column">
+                    <div class="small">Current cover image: <span v-if="editBook.original.coverImage">{{ editBook.original.coverImage }}</span><span v-else>none</span></div>
+                    <div v-if="editBook.coverBase64" style="margin-top:.4rem"><img :src="editBook.coverBase64" class="cover-preview"/></div>
+                  </div>
+                </div>
+
+                <div style="display:flex;gap:.5rem;margin-top:.6rem">
+                  <button class="btn" @click="submitUpdate"><span v-if="loading.update" class="spinner" aria-hidden></span> Submit Update</button>
+                  <button class="btn secondary" @click="resetEdit">Reset form</button>
+                </div>
+
+                <div style="margin-top:.6rem">
+                  <div class="small">Status: <strong>{{ editBook.status }}</strong></div>
+                  <div class="small">HTTP Code: <strong>{{ editBook.httpStatus || '-' }}</strong></div>
+                </div>
+              </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="right">
+            <div class="panel">
+              <div class="panel-header"><strong>Results Panel</strong></div>
+              <div class="panel-body">
+                <div class="small">Status: <strong>{{ result.status || '-' }}</strong></div>
+                <div style="margin-top:.6rem"><div class="small">Response:</div><pre>{{ formattedResult }}</pre></div>
+                <div style="margin-top:.5rem;display:flex;gap:.5rem"><button class="btn secondary" @click="copyResult">Copy</button><button class="btn secondary" @click="clearResult">Clear</button></div>
+              </div>
+            </div>
+
+            <div class="panel" style="margin-top:1rem">
+              <div class="panel-header"><strong>Request History</strong></div>
+              <div class="panel-body">
+                <div class="small">Method &nbsp; URL &nbsp; Timestamp</div>
+                <div style="max-height:30vh;overflow:auto;margin-top:.5rem">
+                  <div v-for="(h,idx) in history.slice().reverse()" :key="idx" style="padding:.4rem;border-bottom:1px solid #f7f7f7;display:flex;justify-content:space-between;align-items:center">
+                    <div><strong>{{ h.method }}</strong> <span class="small">{{ h.url }}</span> <div class="small">{{ h.time }}</div></div>
+                    <div style="display:flex;gap:.4rem"><button class="btn secondary" @click="replay(h)">Replay</button><button class="btn secondary" @click="editHistory(h)">Edit</button></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+    <script>
+      const { createApp, ref, reactive } = Vue;
+
+      // create the app inside a try/catch so any script error will be shown in-page
+      try{
+      createApp({
+        data(){
+          return {
+            showSidebar: true,
+            token: localStorage.getItem('api_token') || '',
+            me: null,
+            // UI state for theming and panels (defaults provided to avoid undefined access)
+            theme: localStorage.getItem('ui_theme') || 'light',
+            accentPicker: localStorage.getItem('ui_accent') || '#2196f3',
+            panels: { auth: true, history: true },
+            loading: { auth:false, request:false, update:false },
+            toasts: [],
+            authForm: { email: '', password: '' },
+            composer: { method: 'GET', url: '/books', body: '', headers: {} },
+            customHeaderKey: '', customHeaderValue: '',
+            result: { status: null, body: null },
+            history: JSON.parse(localStorage.getItem('api_history') || '[]'),
+            books: [],
+            catalog: { q:'', author:'', category:'', page:1, limit:10 },
+            editBook: {
+              options: [],
+              selectedId: '',
+              original: null,
+              form: {},
+              coverFile: null,
+              coverBase64: null,
+              status: 'idle',
+              httpStatus: null
+            }
+          }
+        },
+        computed:{
+          tokenPreview(){ return this.token ? this.token.slice(0,60) + (this.token.length>60? '...':'') : 'No token'; },
+          formattedResult(){ try { return JSON.stringify(this.result.body, null, 2); } catch(e){ return String(this.result.body); } }
+        },
+        mounted(){ if(this.token) this.whoami(); this.loadBookOptions(); this.applyTheme(); this.setAccent(); },
+        methods:{
+          async whoami(){ try{ const r = await this.api('GET','/users/me'); if(r.ok){ this.me = r.body; } }catch(e){} },
+          setToken(t){ this.token = t; localStorage.setItem('api_token', t); this.whoami(); },
+          clearToken(){ this.token=''; localStorage.removeItem('api_token'); this.me=null; },
+          copyToken(){ navigator.clipboard.writeText(this.token || ''); this.showToast('Token copied', 'success'); },
+          async register(){ try{ const payload = { name: this.authForm.name || 'Demo', email:this.authForm.email, password:this.authForm.password }; this.loading.auth = true; const r = await this.rawFetch('/auth/register','POST',payload); this.loading.auth = false; this.handleFetchResult(r); if(r.ok && r.body.token){ this.setToken(r.body.token); this.showToast('Registered & logged in', 'success'); } else if(!r.ok){ this.showToast('Register failed', 'error'); } }catch(e){ this.loading.auth = false; this.showToast(String(e), 'error') } },
+          async login(){ try{ const payload = { email:this.authForm.email, password:this.authForm.password }; this.loading.auth = true; const r = await this.rawFetch('/auth/login','POST',payload); this.loading.auth = false; this.handleFetchResult(r); if(r.ok && r.body.token){ this.setToken(r.body.token); this.showToast('Logged in', 'success'); } else if(!r.ok){ this.showToast('Login failed', 'error'); } }catch(e){ this.loading.auth = false; this.showToast(String(e), 'error') } },
+          logout(){ this.clearToken(); this.showToast('Logged out', 'warn'); },
+          applyTheme(){ try{ document.documentElement.classList.toggle('dark', this.theme==='dark'); localStorage.setItem('ui_theme', this.theme); }catch(e){} },
+          setAccent(){ try{ document.documentElement.style.setProperty('--accent', this.accentPicker); document.documentElement.style.setProperty('--accent-2', this.shadeColor(this.accentPicker, -12)); localStorage.setItem('ui_accent', this.accentPicker); }catch(e){} },
+          shadeColor(hex, percent){ try{ const f=parseInt(hex.slice(1),16),t=percent<0?0:255,p=Math.abs(percent)/100,R=f>>16,G=f>>8&0x00FF,B=f&0x0000FF; const r=Math.round((t-R)*p)+R; const g=Math.round((t-G)*p)+G; const b=Math.round((t-B)*p)+B; return '#'+(0x1000000+(r<<16)+(g<<8)+b).toString(16).slice(1); }catch(e){ return hex } },
+          togglePanel(name){ this.panels[name] = !this.panels[name]; },
+          showToast(msg, type='success', ttl=3000){ try{ const wrap = document.getElementById('toasts'); const el = document.createElement('div'); el.className = 'toast ' + (type==='success'?'badge success': type==='error'?'badge error':'badge warn'); el.textContent = msg; wrap.appendChild(el); setTimeout(()=>{ try{ el.style.opacity='0'; wrap.removeChild(el);}catch(e){} }, ttl); }catch(e){ console.log(msg) } },
+          addHeader(){ if(!this.customHeaderKey) return; this.$set(this.composer.headers, this.customHeaderKey, this.customHeaderValue); this.customHeaderKey=''; this.customHeaderValue=''; },
+          removeHeader(k){ this.$delete(this.composer.headers, k); },
+          clearComposer(){ this.composer = { method:'GET', url:'/books', body:'', headers:{} }; },
+          async sendComposer(){ try{ const body = this.composer.body ? JSON.parse(this.composer.body) : undefined; const r = await this.rawFetch(this.composer.url, this.composer.method, body, this.composer.headers); this.handleFetchResult(r); this.pushHistory({ method:this.composer.method,url:this.composer.url,body:this.composer.body,headers:this.composer.headers,time:new Date().toLocaleString() }); }catch(e){ alert('Invalid JSON body') } },
+          async doRequest(method, url){ this.composer.method = method; this.composer.url = url; await this.sendComposer(); },
+          async rawFetch(url, method='GET', body, headers={}){
+            const opts = { method, headers: { ...headers } };
+            if(body && (method==='POST' || method==='PUT' || method==='PATCH')){ opts.headers['Content-Type']='application/json'; opts.body = JSON.stringify(body); }
+            if(this.token) opts.headers['Authorization'] = 'Bearer ' + this.token;
+            this.loading.request = true;
+            try{
+              const res = await fetch(url, opts);
+              const text = await res.text();
+              let parsed = null; try{ parsed = text ? JSON.parse(text) : null; }catch(e){ parsed = text }
+              return { ok: res.ok, status: res.status, headers: Object.fromEntries(res.headers.entries()), body: parsed };
+            }catch(e){ this.showToast('Network error: '+String(e),'error'); return { ok:false, status:0, body: String(e) } }
+            finally{ this.loading.request = false }
+          },
+          async api(url, method='GET', body, headers){ const r = await this.rawFetch(url, method, body, headers); return r; },
+          handleFetchResult(r){ this.result.status = r.status; this.result.body = r.body; },
+          pushHistory(item){ this.history.push(item); localStorage.setItem('api_history', JSON.stringify(this.history)); },
+          saveToHistory(){ this.pushHistory({ method:this.composer.method,url:this.composer.url,body:this.composer.body,headers:this.composer.headers,time:new Date().toLocaleString() }); alert('Saved') },
+          loadFromHistory(h){ this.composer.method = h.method; this.composer.url = h.url; this.composer.body = h.body; this.composer.headers = h.headers || {}; },
+          replay(h){ this.loadFromHistory(h); this.sendComposer(); },
+          editHistory(h){ this.loadFromHistory(h); this.selectTab('composer'); },
+          async fetchBooks(){ try{ const q = new URLSearchParams(); if(this.catalog.q) q.set('q', this.catalog.q); if(this.catalog.author) q.set('author', this.catalog.author); if(this.catalog.category) q.set('category', this.catalog.category); q.set('page', this.catalog.page); q.set('limit', this.catalog.limit); const r = await this.rawFetch('/books?'+q.toString(),'GET'); if(r.ok){ this.books = r.body; this.handleFetchResult(r); } else this.handleFetchResult(r); }catch(e){ alert(e.message) } },
+          prevPage(){ if(this.catalog.page>1){ this.catalog.page--; this.fetchBooks(); } },
+          nextPage(){ this.catalog.page++; this.fetchBooks(); },
+          viewDetails(b){ this.handleFetchResult({ status:200, body: b }); },
+          async downloadBook(b){ try{ if(!this.token){ if(!confirm('You need to login to download. Go to login?')) return; } const opts = { headers: {} }; if(this.token) opts.headers['Authorization']='Bearer '+this.token; const res = await fetch('/download/' + b._id, opts); if(!res.ok){ const txt = await res.text(); alert('Download failed: ' + txt); return; } const blob = await res.blob(); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = (b.title||'book') + '.pdf'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url); this.pushHistory({ method:'GET', url:'/download/'+b._id, time:new Date().toLocaleString() }); }catch(e){ alert(e.message) } },
+          saveResult(){ navigator.clipboard.writeText(this.formattedResult); alert('Copied') },
+          copyResult(){ navigator.clipboard.writeText(this.formattedResult); alert('Copied') },
+          clearResult(){ this.result = { status:null, body:null }; },
+
+          // --- Edit Book feature methods ---
+          async loadBookOptions(){
+            try{
+              const r = await this.rawFetch('/books','GET');
+              if(r.ok) this.editBook.options = r.body || [];
+            }catch(e){ console.error(e); }
+          },
+
+          async fetchBookForEdit(id){
+            if(!id) { this.editBook.original = null; return; }
+            this.editBook.status = 'loading';
+            try{
+              const r = await this.rawFetch('/books/' + id, 'GET');
+              this.editBook.httpStatus = r.status;
+              if(!r.ok){ this.editBook.status = 'error'; this.handleFetchResult(r); return; }
+              this.editBook.original = r.body;
+              // shallow copy into form
+              this.editBook.form = Object.assign({}, r.body);
+              // normalize tags for editing as CSV
+              this.editBook.form.tags = Array.isArray(r.body.tags) ? r.body.tags.join(', ') : (r.body.tags || '');
+              // clear any previously selected cover file
+              this.editBook.coverFile = null;
+              this.editBook.coverBase64 = null;
+              this.editBook.status = 'ready';
+              this.handleFetchResult(r);
+            }catch(e){ this.editBook.status = 'error'; this.editBook.httpStatus = null; console.error(e); }
+          },
+
+          onCoverSelected(e){
+            const f = e.target.files && e.target.files[0];
+            if(!f) return; this.editBook.coverFile = f; this.editBook.status = 'cover-selected';
+            const reader = new FileReader();
+            reader.onload = () => { this.editBook.coverBase64 = reader.result; };
+            reader.onerror = () => { this.editBook.coverBase64 = null; };
+            reader.readAsDataURL(f);
+          },
+
+          buildUpdatePayload(){
+            const payload = {};
+            if(!this.editBook.original) return payload;
+            const fields = ['title','author','isbn','category','description','language','publishedYear','publisher','pages','tags'];
+            for(const f of fields){
+              const orig = this.editBook.original[f];
+              const cur = this.editBook.form[f];
+              // normalize numbers
+              if(f==='tags'){
+                const origTags = Array.isArray(orig) ? orig.join(', ') : (orig||'');
+                if((cur||'') !== (origTags||'')) payload.tags = cur ? cur.split(',').map(s=>s.trim()).filter(Boolean) : [];
+                continue;
+              }
+              if(typeof cur === 'number' && String(orig) !== String(cur)) payload[f]=cur;
+              else if((cur || '') !== (orig || '')) payload[f]=cur;
+            }
+            // cover image: handled separately via multipart upload when a file is selected
+            return payload;
+          },
+
+          async uploadCover(file){
+            // uploads a single image file to /upload/image using multipart/form-data
+            if(!file) return { ok:false, status:400, body: { message: 'No file' } };
+            const form = new FormData();
+            form.append('image', file, file.name);
+            const headers = {};
+            if(this.token) headers['Authorization'] = 'Bearer ' + this.token;
+            const res = await fetch('/upload/image', { method: 'POST', headers, body: form });
+            const text = await res.text();
+            let parsed = null; try{ parsed = text ? JSON.parse(text) : null; } catch(e){ parsed = text }
+            return { ok: res.ok, status: res.status, body: parsed };
+          },
+
+          validateEditForm(payload){
+            const errors = [];
+            if(payload.title !== undefined && (!payload.title || String(payload.title).trim().length<2)) errors.push('Title is required (min 2 chars)');
+            if(payload.publishedYear !== undefined){ const y = Number(payload.publishedYear); const cy = new Date().getFullYear(); if(isNaN(y) || y<1500 || y>cy+1) errors.push('Published Year looks invalid'); }
+            if(payload.pages !== undefined){ const p = Number(payload.pages); if(isNaN(p) || p<=0) errors.push('Pages must be a positive integer'); }
+            if(payload.isbn !== undefined && payload.isbn){ const ok = /^[0-9\-]{8,20}$/.test(String(payload.isbn)); if(!ok) errors.push('ISBN format invalid (digits and dashes only)'); }
+            return errors;
+          },
+
+          async updateBookRequest(id, payload){
+            // modular wrapper for update call - can be extended with retries, timeouts etc.
+            return await this.rawFetch('/books/' + id, 'PUT', payload);
+          },
+
+          async submitUpdate(){
+            if(!this.editBook.selectedId){ alert('Select a book first'); return; }
+            const payload = this.buildUpdatePayload();
+            if(Object.keys(payload).length===0){ this.editBook.status='no-changes'; alert('No changes detected'); return; }
+            const validationErrors = this.validateEditForm(payload);
+            if(validationErrors.length){ this.editBook.status='validation-error'; this.handleFetchResult({ status:400, body: { errors: validationErrors } }); return; }
+
+            this.editBook.status = 'submitting';
+            try{
+              // if a new cover file is selected, upload it first
+              if(this.editBook.coverFile){
+                this.editBook.status = 'uploading-cover';
+                const up = await this.uploadCover(this.editBook.coverFile);
+                this.editBook.httpStatus = up.status;
+                if(!up.ok){ this.editBook.status='error'; this.handleFetchResult(up); return; }
+                // attach returned path to payload
+                payload.coverImage = up.body && up.body.path ? up.body.path : up.body.filename || null;
+              }
+
+              // ensure we still have something to send
+              if(Object.keys(payload).length===0){ this.editBook.status='no-changes'; alert('No changes detected'); return; }
+
+              const r = await this.updateBookRequest(this.editBook.selectedId, payload);
+              this.editBook.httpStatus = r.status;
+              if(r.ok){ this.editBook.status = 'success'; this.editBook.original = r.body; this.editBook.form = Object.assign({}, r.body); this.handleFetchResult(r); this.pushHistory({ method:'PUT', url:'/books/' + this.editBook.selectedId, body: payload, time: new Date().toLocaleString() }); }
+              else { this.editBook.status='error'; this.handleFetchResult(r); }
+            }catch(e){ this.editBook.status='error'; console.error(e); }
+          },
+
+          resetEdit(){ if(this.editBook.original) this.editBook.form = Object.assign({}, this.editBook.original); this.editBook.coverFile=null; this.editBook.coverBase64=null; this.editBook.status='ready'; },
+        }
+      }).mount('#app');
+      }catch(err){
+        console.error('Client app failed to start', err);
+        const root = document.getElementById('app');
+        if(root){
+          root.innerHTML = '<div style="padding:20px;font-family:Inter,Arial;color:#900;background:#fff0f0;border:1px solid #f5c2c7;border-radius:8px;margin:20px">'
+            + '<h3 style="margin-top:0">Client error</h3>'
+            + '<pre style="white-space:pre-wrap;color:#600">'+String(err)+'</pre>'
+            + '<div class="small">Open the browser console for full stack trace.</div>'
+            + '</div>';
+        }
+      }
+    </script>
+  </body>
+</html>

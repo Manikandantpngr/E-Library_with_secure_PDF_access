@@ -1,0 +1,475 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>E-Library — Interactive API Client (v2)</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" integrity="" crossorigin="anonymous" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    /* Core theme variables */
+    :root{
+      --bg: #f6f8fb; --surface: #fff; --muted:#6b7280; --text:#0f1724;
+      --accent: #2563eb; --accent-2: #7c3aed; --success:#10b981; --danger:#ef4444; --warn:#f59e0b;
+      --card-shadow: 0 8px 30px rgba(12,18,35,0.06);
+      --radius: 12px; --gap: 16px; --max-width:1200px;
+    }
+    :root[data-theme='dark']{
+      --bg: #071029; --surface: #0b1220; --muted:#9aa4b2; --text:#e6f0ff;
+      --card-shadow: 0 12px 36px rgba(2,6,23,0.6);
+    }
+
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0;font-family:Inter,system-ui,Segoe UI,Roboto,Arial;color:var(--text);background:linear-gradient(180deg,var(--bg),transparent);}
+    .wrap{max-width:var(--max-width);margin:28px auto;padding:20px;display:grid;grid-template-columns:320px 1fr;gap:24px}
+    header.top{grid-column:1/-1;display:flex;align-items:center;gap:16px;background:linear-gradient(90deg,var(--accent),var(--accent-2));padding:18px;border-radius:14px;color:white;box-shadow:var(--card-shadow)}
+    header.top h1{margin:0;font-size:18px;font-weight:700}
+    header.top p{margin:0;opacity:.9}
+
+    /* Sidebar */
+    .sidebar{display:flex;flex-direction:column;gap:12px}
+    .card{background:var(--surface);border-radius:var(--radius);padding:14px;box-shadow:var(--card-shadow);transition:transform .22s,box-shadow .22s}
+    .card .title{font-weight:700;margin-bottom:8px}
+    .muted{color:var(--muted)}
+
+    /* Controls */
+    .row{display:flex;gap:8px;align-items:center}
+    .btn{background:var(--accent);color:white;padding:8px 12px;border-radius:10px;border:0;cursor:pointer;display:inline-flex;align-items:center;gap:8px;transition:transform .15s,box-shadow .15s}
+    .btn:hover{transform:translateY(-3px);box-shadow:0 12px 30px rgba(0,0,0,0.12)}
+    .btn.secondary{background:transparent;color:var(--text);border:1px solid rgba(0,0,0,0.06)}
+    .btn.icon{padding:8px;width:40px;height:40px;justify-content:center}
+    .input,textarea,select{width:100%;padding:10px;border-radius:10px;border:1px solid rgba(0,0,0,0.06);background:linear-gradient(180deg,rgba(255,255,255,0.6),rgba(255,255,255,0.3));outline:none}
+    [data-theme='dark'] .input, [data-theme='dark'] textarea, [data-theme='dark'] select{background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.04)}
+    label{font-size:13px;font-weight:600;display:block;margin-bottom:6px}
+    .help{font-size:12px;color:var(--muted);margin-top:6px}
+
+    /* Layout center area */
+    .main-grid{display:grid;grid-template-columns:1fr 420px;gap:16px}
+    .pane{display:flex;flex-direction:column;gap:12px}
+
+    /* Catalog list */
+    .book-row{display:flex;gap:12px;align-items:center;padding:10px;border-radius:10px;border:1px solid rgba(0,0,0,0.03);transition:transform .14s,box-shadow .14s}
+    .book-row:hover{transform:translateY(-4px);box-shadow:0 18px 40px rgba(2,6,23,0.06)}
+    .book-thumb{width:64px;height:94px;border-radius:8px;background:linear-gradient(180deg,#eee,#ddd);display:flex;align-items:center;justify-content:center;color:var(--muted);overflow:hidden}
+    .book-meta{flex:1}
+    .book-actions{display:flex;gap:8px}
+
+    /* Modal editor */
+    .modal-backdrop{position:fixed;inset:0;background:rgba(2,6,23,0.45);display:flex;align-items:center;justify-content:center;z-index:999}
+    .modal{width:880px;background:var(--surface);padding:18px;border-radius:14px;box-shadow:var(--card-shadow);max-height:90vh;overflow:auto}
+    .modal .grid{display:grid;grid-template-columns:1fr 320px;gap:12px}
+    .status-bar{height:8px;border-radius:8px;background:linear-gradient(90deg,#e2e8f0,#c7d2fe);overflow:hidden}
+    .status-bar .progress{height:100%;width:0;background:linear-gradient(90deg,var(--accent),var(--accent-2));transition:width .6s}
+
+    /* Results viewer */
+    .results pre{background:transparent;color:var(--text);padding:12px;border-radius:10px;overflow:auto}
+    .badge{display:inline-block;padding:6px 10px;border-radius:999px;font-weight:700}
+    .badge.success{background:linear-gradient(90deg,#10b981,#059669);color:white}
+    .badge.error{background:linear-gradient(90deg,#ef4444,#dc2626);color:white}
+
+    /* Toasts */
+    .toasts{position:fixed;right:20px;bottom:20px;display:flex;flex-direction:column;gap:8px;z-index:2000}
+    .toast{padding:12px 14px;border-radius:10px;color:white;box-shadow:0 8px 30px rgba(2,6,23,0.4);animation:fadeInUp .4s}
+    .toast.success{background:linear-gradient(90deg,#10b981,#059669)}
+    .toast.error{background:linear-gradient(90deg,#ef4444,#dc2626)}
+    @keyframes fadeInUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+    /* Responsive */
+    @media (max-width:1100px){.wrap{grid-template-columns:1fr;}.main-grid{grid-template-columns:1fr}.sidebar{order:2}.top{grid-column:1/-1}}
+  </style>
+</head>
+<body data-theme="light">
+  <div class="wrap">
+    <header class="top" role="banner">
+      <div>
+        <h1>E-Library — Interactive API Client</h1>
+        <p class="muted">Test and manage your books, uploads and downloads with a modern admin playground.</p>
+      </div>
+      <div style="margin-left:auto;display:flex;gap:10px;align-items:center">
+        <div id="accountChip" class="card" style="display:flex;align-items:center;gap:10px;padding:8px 12px;color:var(--text);background:rgba(255,255,255,0.08)"></div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <button id="helpBtn" class="btn secondary icon" title="Help (quick tour)"><i class="fa-solid fa-circle-info"></i></button>
+          <input id="themePicker" type="color" title="Accent color" style="width:44px;height:40px;border-radius:8px;border:0" />
+          <button id="themeToggle" class="btn icon" title="Toggle light/dark"><i class="fa-solid fa-moon"></i></button>
+        </div>
+      </div>
+    </header>
+
+    <aside class="sidebar">
+      <section class="card" aria-labelledby="authTitle">
+        <div id="authTitle" class="title">Authentication</div>
+        <div id="authSection">
+          <label for="emailInput">Email</label>
+          <input id="emailInput" class="input" placeholder="alice@example.com" />
+          <label for="passwordInput" style="margin-top:8px">Password</label>
+          <input id="passwordInput" class="input" type="password" placeholder="••••••••" />
+          <div class="row" style="margin-top:10px">
+            <button id="loginBtn" class="btn"><i class="fa-solid fa-right-to-bracket"></i> Sign in</button>
+            <button id="registerBtn" class="btn secondary">Register</button>
+          </div>
+          <div class="help">Account status shown above. Tokens are stored locally for convenience.</div>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="title">Request Composer</div>
+        <label for="methodSelect">Method</label>
+        <select id="methodSelect" class="input">
+          <option>GET</option>
+          <option>POST</option>
+          <option>PUT</option>
+          <option>DELETE</option>
+        </select>
+        <label for="urlInput">Endpoint</label>
+        <input id="urlInput" class="input" placeholder="/books or /auth/login" />
+        <label for="bodyInput" style="margin-top:8px">Body (JSON)</label>
+        <textarea id="bodyInput" rows="6" class="input" placeholder='{"title":"My Book"}'></textarea>
+        <label style="margin-top:8px">Headers</label>
+        <div style="display:flex;gap:8px;margin-top:6px">
+          <input id="hdrKey" class="input" placeholder="Name (e.g. X-Trace)" />
+          <input id="hdrVal" class="input" placeholder="Value" />
+        </div>
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <button id="addHdr" class="btn secondary">Add header</button>
+          <button id="sendBtn" class="btn"><i class="fa-solid fa-paper-plane"></i> Send</button>
+          <button id="saveReq" class="btn secondary">Save</button>
+        </div>
+        <div id="headersList" class="help" style="margin-top:8px"></div>
+      </section>
+
+      <section class="card">
+        <div class="title">Request History</div>
+        <div id="historyList" style="display:flex;flex-direction:column;gap:8px;max-height:220px;overflow:auto;margin-top:8px"></div>
+      </section>
+
+      <section class="card" style="display:flex;flex-direction:column;gap:8px">
+        <div class="title">Help & Onboarding</div>
+        <div class="help">Use the composer to craft requests. Login to perform privileged actions. Open a book to edit or download.</div>
+        <button id="openHelp" class="btn secondary">Open help</button>
+      </section>
+    </aside>
+
+    <main class="main-grid">
+      <div class="pane">
+        <section class="card">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <div><strong>Book Catalog</strong><div class="muted">Search, filter, and browse</div></div>
+            <div class="row">
+              <input id="catalogSearch" class="input" placeholder="Search title or author" />
+              <button id="catalogSearchBtn" class="btn secondary">Search</button>
+            </div>
+          </div>
+
+          <div id="catalogList" style="display:flex;flex-direction:column;gap:10px;margin-top:12px;max-height:420px;overflow:auto"></div>
+
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px">
+            <div class="muted">Pagination: Page <span id="pageNumber">1</span></div>
+            <div class="row"><button id="prevPage" class="btn secondary">Prev</button><button id="nextPage" class="btn secondary">Next</button></div>
+          </div>
+        </section>
+
+        <section class="card results">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <div><strong>Response Viewer</strong><div class="muted">Status, body, and actions</div></div>
+            <div class="row">
+              <button id="copyRaw" class="btn secondary">Copy Raw JSON</button>
+              <button id="clearRes" class="btn secondary">Clear</button>
+            </div>
+          </div>
+          <div style="margin-top:12px"><div id="resStatus" class="muted">Status: -</div></div>
+          <div style="margin-top:8px"><pre id="resBody">{ }</pre></div>
+        </section>
+      </div>
+
+      <aside class="pane">
+        <section class="card">
+          <div class="title">Book Editor</div>
+          <div class="muted">Select a book from the catalog and click Edit to open the editor.</div>
+          <div style="display:flex;gap:8px;margin-top:12px">
+            <button id="openEditorBtn" class="btn secondary">Open Editor</button>
+            <button id="refreshCatalog" class="btn">Refresh</button>
+          </div>
+        </section>
+
+        <section class="card">
+          <div class="title">Account</div>
+          <div id="accountDetails" class="muted">Not logged in — click Sign in</div>
+        </section>
+
+        <section class="card">
+          <div class="title">Session</div>
+          <div class="muted">Token preview</div>
+          <div id="tokenPreview" style="word-break:break-all;background:linear-gradient(180deg,rgba(255,255,255,0.6),rgba(255,255,255,0.3));padding:8px;border-radius:8px;margin-top:8px;max-height:80px;overflow:auto">-</div>
+        </section>
+      </aside>
+
+    </main>
+
+    <div class="toasts" id="toasts"></div>
+  </div>
+
+  <!-- Editor modal template -->
+  <template id="editorTpl">
+    <div class="modal-backdrop">
+      <div class="modal" role="dialog" aria-modal="true">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <h3>Edit Book</h3>
+          <div class="row"><button id="closeModal" class="btn secondary">Close</button></div>
+        </div>
+        <div class="status-bar"><div id="editorProgress" class="progress"></div></div>
+        <div style="margin-top:12px" class="grid">
+          <div>
+            <label>Title</label>
+            <input id="editTitle" class="input" />
+            <label style="margin-top:8px">Author</label>
+            <input id="editAuthor" class="input" />
+            <label style="margin-top:8px">ISBN</label>
+            <input id="editISBN" class="input" />
+            <label style="margin-top:8px">Category</label>
+            <input id="editCategory" class="input" />
+            <label style="margin-top:8px">Description</label>
+            <textarea id="editDescription" class="input" rows="5"></textarea>
+          </div>
+          <div>
+            <label>Cover image</label>
+            <div style="display:flex;gap:8px;align-items:center">
+              <div id="coverPreview" class="book-thumb">No image</div>
+              <div style="flex:1">
+                <input id="coverFile" type="file" accept="image/*" />
+                <div class="help">PNG, JPG recommended. Max 2MB suggested.</div>
+              </div>
+            </div>
+            <label style="margin-top:8px">Published Year</label>
+            <input id="editYear" class="input" />
+            <label style="margin-top:8px">Publisher</label>
+            <input id="editPublisher" class="input" />
+            <label style="margin-top:8px">Pages</label>
+            <input id="editPages" class="input" />
+            <label style="margin-top:8px">Tags (comma separated)</label>
+            <input id="editTags" class="input" />
+            <div style="display:flex;gap:8px;margin-top:12px">
+              <button id="saveBook" class="btn">Save</button>
+              <button id="cancelSave" class="btn secondary">Reset</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </template>
+
+  <script>
+    (function(){
+      // Minimal helper utilities
+      const $ = s => document.querySelector(s);
+      const $$ = s => Array.from(document.querySelectorAll(s));
+      const toJSON = (o) => {
+        try{ return JSON.stringify(o, null, 2) }catch(e){ return String(o) }
+      };
+
+      // App state
+      const state = {
+        token: localStorage.getItem('api_token') || '',
+        me: null,
+        headers: {},
+        history: JSON.parse(localStorage.getItem('api_history_v2')||'[]'),
+        catalogPage: 1,
+        catalogQ: '',
+        books: []
+      };
+
+      // Elements
+      const accChip = $('#accountChip');
+      const accountDetails = $('#accountDetails');
+      const tokenPreview = $('#tokenPreview');
+      const resStatus = $('#resStatus');
+      const resBody = $('#resBody');
+      const toasts = $('#toasts');
+
+      // Theme controls
+      const themeToggle = $('#themeToggle');
+      const themePicker = $('#themePicker');
+      const body = document.body;
+      body.setAttribute('data-theme', localStorage.getItem('ui_theme') || 'light');
+      themePicker.value = localStorage.getItem('ui_accent') || '#2563eb';
+      const applyAccent = (hex)=>{ document.documentElement.style.setProperty('--accent', hex); document.documentElement.style.setProperty('--accent-2', shade(hex,-10)); localStorage.setItem('ui_accent', hex); };
+      applyAccent(themePicker.value);
+      themePicker.addEventListener('input', e=>applyAccent(e.target.value));
+      themeToggle.addEventListener('click', ()=>{
+        const t = body.getAttribute('data-theme') === 'dark' ? 'light': 'dark'; body.setAttribute('data-theme', t); localStorage.setItem('ui_theme', t);
+      });
+
+      function shade(hex, percent){ try{ const f=parseInt(hex.slice(1),16),t=percent<0?0:255,p=Math.abs(percent)/100,R=f>>16,G=f>>8&0x00FF,B=f&0x0000FF; const r=Math.round((t-R)*p)+R; const g=Math.round((t-G)*p)+G; const b=Math.round((t-B)*p)+B; return '#'+(0x1000000+(r<<16)+(g<<8)+b).toString(16).slice(1); }catch(e){return hex} }
+
+      function showToast(msg, type='success', ttl=3000){ const el = document.createElement('div'); el.className = 'toast '+(type==='error'?'error':'success'); el.textContent = msg; toasts.appendChild(el); setTimeout(()=>{ try{ el.remove() }catch(e){} }, ttl); }
+
+      function setAccountUI(){
+        if(state.me){ accChip.innerHTML = `<div style="display:flex;gap:10px;align-items:center"><strong>${state.me.email}</strong><span class="muted">(${state.me.role||'User'})</span></div>`; accountDetails.textContent = `Logged in as ${state.me.email} (${state.me.role||'User'})`; tokenPreview.textContent = state.token ? (state.token.slice(0,60)+'...') : '-'; }
+        else{ accChip.innerHTML = `<div style="display:flex;gap:8px;align-items:center"><strong>Not logged in</strong></div>`; accountDetails.textContent = 'Not logged in — click Sign in'; tokenPreview.textContent = '-'; }
+      }
+
+      // Fetch wrapper
+      async function rawFetch(path, method='GET', body=null, extraHeaders={}){
+        const headers = Object.assign({}, extraHeaders);
+        if(state.token) headers['Authorization'] = 'Bearer '+state.token;
+        const opts = { method, headers };
+        if(body && ['POST','PUT','PATCH'].includes(method)){
+          opts.headers['Content-Type']='application/json'; opts.body = JSON.stringify(body);
+        }
+        try{
+          resStatus.textContent = 'Status: loading...';
+          const r = await fetch(path, opts);
+          const text = await r.text();
+          let bodyParsed = null; try{ bodyParsed = text? JSON.parse(text): null }catch(e){ bodyParsed = text }
+          resStatus.textContent = 'Status: '+r.status;
+          resBody.textContent = toJSON(bodyParsed);
+          return { ok: r.ok, status: r.status, body: bodyParsed };
+        }catch(e){ resStatus.textContent='Status: network error'; resBody.textContent = String(e); showToast('Network error','error'); return { ok:false, status:0, body: String(e) } }
+      }
+
+      // Auth flows
+      $('#loginBtn').addEventListener('click', async ()=>{
+        const email = $('#emailInput').value.trim(); const pw = $('#passwordInput').value;
+        if(!email || !pw){ showToast('Email and password are required','error'); return; }
+        const r = await rawFetch('/auth/login','POST',{ email, password: pw });
+        if(r.ok && r.body && r.body.token){ state.token = r.body.token; localStorage.setItem('api_token', state.token); await whoami(); showToast('Logged in','success'); }
+        else{ showToast('Login failed','error'); }
+      });
+
+      $('#registerBtn').addEventListener('click', async ()=>{
+        const email = $('#emailInput').value.trim(); const pw = $('#passwordInput').value;
+        if(!email || !pw){ showToast('Email and password are required','error'); return; }
+        const r = await rawFetch('/auth/register','POST',{ name: email.split('@')[0], email, password: pw });
+        if(r.ok){ showToast('Registered', 'success'); }
+        else showToast('Register failed','error');
+      });
+
+      async function whoami(){ const r = await rawFetch('/users/me','GET'); if(r.ok){ state.me = r.body; setAccountUI(); } else { state.me = null; setAccountUI(); } }
+      // try restore token
+      if(state.token) whoami(); else setAccountUI();
+
+      // Composer
+      $('#sendBtn').addEventListener('click', async ()=>{
+        const method = $('#methodSelect').value.trim(); const url = $('#urlInput').value.trim();
+        let body = null; try{ body = $('#bodyInput').value ? JSON.parse($('#bodyInput').value) : null; }catch(e){ showToast('Body must be valid JSON','error'); return; }
+        const headers = Object.assign({}, state.headers);
+        const r = await rawFetch(url, method, body, headers);
+        // save to history
+        const entry = { method, url, time: new Date().toLocaleString(), body }; state.history.push(entry); localStorage.setItem('api_history_v2', JSON.stringify(state.history)); renderHistory();
+        if(r.ok) showToast('Request succeeded','success'); else showToast('Request failed','error');
+      });
+
+      $('#addHdr').addEventListener('click', ()=>{
+        const k = $('#hdrKey').value.trim(); const v = $('#hdrVal').value.trim(); if(!k){ showToast('Header name required','error'); return; } state.headers[k]=v; renderHeaders(); $('#hdrKey').value=''; $('#hdrVal').value='';
+      });
+
+      function renderHeaders(){ const el = $('#headersList'); el.innerHTML = Object.keys(state.headers).map(k=>`<div style="display:flex;justify-content:space-between;gap:8px"><div><strong>${k}</strong>: ${state.headers[k]}</div><button data-key="${k}" class='btn secondary'>Remove</button></div>`).join(''); el.querySelectorAll('button').forEach(btn=>btn.addEventListener('click', ()=>{ const key = btn.getAttribute('data-key'); delete state.headers[key]; renderHeaders(); })); }
+      renderHeaders();
+
+      // History
+      function renderHistory(){ const h = $('#historyList'); h.innerHTML = state.history.slice().reverse().map((it, idx)=>{
+        return `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px;border-radius:8px;background:linear-gradient(180deg,rgba(0,0,0,0.02),transparent)"><div><strong>${it.method}</strong> <span class='muted'>${it.url}</span><div class='muted'>${it.time}</div></div><div style='display:flex;gap:6px'><button data-idx='${state.history.length-1-idx}' class='btn secondary'>Replay</button><button data-idx-edit='${state.history.length-1-idx}' class='btn secondary'>Edit</button></div></div>`
+      }).join('');
+      $$('#historyList button[data-idx]').forEach(b=>b.addEventListener('click', ()=>{ const idx = +b.getAttribute('data-idx'); const it = state.history[idx]; $('#methodSelect').value = it.method; $('#urlInput').value = it.url; $('#bodyInput').value = it.body ? JSON.stringify(it.body, null, 2) : ''; showToast('Loaded history item','success'); }));
+      $$('#historyList button[data-idx-edit]').forEach(b=>b.addEventListener('click', ()=>{ const idx = +b.getAttribute('data-idx-edit'); const it = state.history[idx]; $('#methodSelect').value = it.method; $('#urlInput').value = it.url; $('#bodyInput').value = it.body ? JSON.stringify(it.body, null, 2) : ''; showToast('Loaded for edit','success'); }));
+      }
+      renderHistory();
+
+      // Catalog
+      async function fetchBooks(){ const q = $('#catalogSearch').value.trim() || ''; const pg = state.catalogPage; const r = await rawFetch('/books?'+(q?('q='+encodeURIComponent(q)+'&'):'')+'page='+pg+'&limit=10','GET'); if(r.ok && Array.isArray(r.body)){ state.books = r.body; renderCatalog(); } }
+      $('#catalogSearchBtn').addEventListener('click', ()=>{ state.catalogPage=1; fetchBooks(); });
+      $('#prevPage').addEventListener('click', ()=>{ if(state.catalogPage>1){ state.catalogPage--; fetchBooks(); $('#pageNumber').textContent = state.catalogPage } });
+      $('#nextPage').addEventListener('click', ()=>{ state.catalogPage++; fetchBooks(); $('#pageNumber').textContent = state.catalogPage });
+      $('#refreshCatalog').addEventListener('click', ()=>fetchBooks());
+
+      function renderCatalog(){ const list = $('#catalogList'); list.innerHTML = state.books.map(b=>{
+        const cover = b.coverImage ? `<img src="/${b.coverImage}" style="width:100%;height:100%;object-fit:cover">` : '<i class="fa-solid fa-book"></i>';
+        return `<div class='book-row'><div class='book-thumb'>${cover}</div><div class='book-meta'><div style='font-weight:700'>${escapeHtml(b.title||'Untitled')}</div><div class='muted'>${escapeHtml(b.author||'Unknown')} • ${escapeHtml(b.category||'')}</div></div><div class='book-actions'><button data-id='${b._id}' class='btn secondary editBtn'>Edit</button><button data-id='${b._id}' class='btn downloadBtn'>Download</button></div></div>`
+      }).join('');
+      // wire events
+      $$('.editBtn').forEach(el=>el.addEventListener('click', async ()=>{ const id = el.getAttribute('data-id'); openEditor(id); }));
+      $$('.downloadBtn').forEach(el=>el.addEventListener('click', async ()=>{ const id = el.getAttribute('data-id'); const res = await fetch('/download/'+id, { headers: state.token?{ 'Authorization':'Bearer '+state.token }:{} }); if(!res.ok){ showToast('Download failed','error'); return; } const blob = await res.blob(); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'book.pdf'; document.body.appendChild(a); a.click(); a.remove(); showToast('Download started','success'); }));
+      }
+
+      function escapeHtml(s){ return String(s||'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'})[c]) }
+
+      // Editor modal
+      const tpl = document.getElementById('editorTpl').content;
+      let currentEditId = null;
+      async function openEditor(id){
+        // fetch book
+        const r = await rawFetch('/books/'+id, 'GET'); if(!r.ok){ showToast('Could not fetch book','error'); return; }
+        const data = r.body; currentEditId = id;
+        const node = tpl.cloneNode(true);
+        document.body.appendChild(node);
+        const modal = document.querySelector('.modal-backdrop');
+        // fill fields
+        $('#editTitle').value = data.title || '';
+        $('#editAuthor').value = data.author || '';
+        $('#editISBN').value = data.isbn || '';
+        $('#editCategory').value = data.category || '';
+        $('#editDescription').value = data.description || '';
+        $('#editYear').value = data.publishedYear || '';
+        $('#editPublisher').value = data.publisher || '';
+        $('#editPages').value = data.pages || '';
+        $('#editTags').value = Array.isArray(data.tags)?data.tags.join(', '): (data.tags||'');
+        if(data.coverImage){ $('#coverPreview').innerHTML = `<img src='/${data.coverImage}' style='width:100%;height:100%;object-fit:cover'>`; }
+
+        // wire modal buttons
+        document.getElementById('closeModal').addEventListener('click', ()=>{ modal.remove(); });
+        document.getElementById('cancelSave').addEventListener('click', ()=>{ // reset
+          $('#editTitle').value = data.title || '';
+          $('#editAuthor').value = data.author || '';
+        });
+        document.getElementById('saveBook').addEventListener('click', async ()=>{
+          // prepare payload with only changed fields
+          const payload = {};
+          if($('#editTitle').value !== (data.title||'')) payload.title = $('#editTitle').value;
+          if($('#editAuthor').value !== (data.author||'')) payload.author = $('#editAuthor').value;
+          if($('#editISBN').value !== (data.isbn||'')) payload.isbn = $('#editISBN').value;
+          if($('#editCategory').value !== (data.category||'')) payload.category = $('#editCategory').value;
+          if($('#editDescription').value !== (data.description||'')) payload.description = $('#editDescription').value;
+          if($('#editYear').value !== (data.publishedYear||'')) payload.publishedYear = $('#editYear').value;
+          if($('#editPublisher').value !== (data.publisher||'')) payload.publisher = $('#editPublisher').value;
+          if($('#editPages').value !== (data.pages||'')) payload.pages = $('#editPages').value;
+          const tagsVal = $('#editTags').value; const tagsArr = tagsVal? tagsVal.split(',').map(s=>s.trim()).filter(Boolean):[];
+          if(JSON.stringify(tagsArr) !== JSON.stringify(data.tags||[])) payload.tags = tagsArr;
+
+          // cover file upload if provided
+          const fileInput = document.getElementById('coverFile');
+          if(fileInput && fileInput.files && fileInput.files[0]){
+            const f = fileInput.files[0];
+            if(f.size > 5*1024*1024){ showToast('Image too large (>5MB)','error'); return; }
+            const fd = new FormData(); fd.append('image', f, f.name);
+            const up = await fetch('/upload/image', { method:'POST', body: fd, headers: state.token?{ 'Authorization':'Bearer '+state.token }:{} });
+            if(!up.ok){ showToast('Cover upload failed','error'); return; }
+            const upj = await up.json(); payload.coverImage = upj.path || upj.filename;
+          }
+
+          // send update
+          const upd = await rawFetch('/books/'+currentEditId, 'PUT', payload);
+          if(upd.ok){ showToast('Book updated','success'); modal.remove(); fetchBooks(); }
+          else showToast('Update failed','error');
+        });
+      }
+
+      // Open editor quick button tries to open currently selected book in composer URL if it's /books/:id
+      $('#openEditorBtn').addEventListener('click', ()=>{
+        const url = $('#urlInput').value.trim(); const m = url.match(/\/books\/(.+)$/); if(m){ openEditor(m[1]); } else showToast('Enter /books/:id in Endpoint or click Edit on a book','error');
+      });
+
+      // Copy and clear response
+      $('#copyRaw').addEventListener('click', ()=>{ navigator.clipboard.writeText(resBody.textContent||''); showToast('Copied response','success'); });
+      $('#clearRes').addEventListener('click', ()=>{ resStatus.textContent='Status: -'; resBody.textContent='{}'; });
+
+      // initial fetch
+      fetchBooks();
+
+      // helper: render account on load
+      setAccountUI();
+
+      // Expose small debug helpers
+      window._apiClient = { state, fetchBooks, rawFetch };
+    })();
+  </script>
+</body>
+</html>

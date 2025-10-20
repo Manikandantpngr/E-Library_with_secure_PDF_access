@@ -1,0 +1,434 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>E-Library — API Client (Final)</title>
+  <meta name="description" content="Interactive API client for the E-Library secure PDF system. Login, browse books, edit metadata, upload covers, and test endpoints." />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap">
+  <style>
+    /* =====================
+       Design tokens
+       ===================== */
+    :root{
+      --bg: #f6f8fb; --surface: #ffffff; --muted:#6b7280; --text:#0f1724;
+      --accent: #2563eb; --accent-2: #7c3aed; --success:#10b981; --danger:#ef4444; --warn:#f59e0b;
+      --card-shadow: 0 10px 30px rgba(12,18,35,0.08);
+      --glass: rgba(255,255,255,0.7);
+      --radius: 12px; --gap:16px; --max-width:1240px; --font-size:16px;
+    }
+    :root[data-theme='dark']{
+      --bg: #071029; --surface: #071425; --muted:#9aa4b2; --text:#e6f0ff; --glass: rgba(255,255,255,0.02);
+      --card-shadow: 0 18px 48px rgba(2,6,23,0.6);
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0;font-family:Inter,system-ui,Segoe UI,Roboto,Arial;color:var(--text);background:linear-gradient(180deg,var(--bg),transparent);font-size:var(--font-size);-webkit-font-smoothing:antialiased}
+
+    /* Layout */
+    .container{max-width:var(--max-width);margin:26px auto;padding:18px;display:grid;grid-template-columns:320px 1fr;gap:24px}
+    header{grid-column:1/-1;display:flex;align-items:center;gap:16px;padding:16px;border-radius:14px;background:linear-gradient(90deg,var(--accent),var(--accent-2));color:white;box-shadow:var(--card-shadow)}
+    header h1{margin:0;font-size:18px}
+    header p{margin:0;opacity:.9}
+
+    /* Sidebar */
+    .sidebar{display:flex;flex-direction:column;gap:12px}
+    .card{background:var(--surface);border-radius:var(--radius);padding:14px;box-shadow:var(--card-shadow)}
+    .title{font-weight:700;margin-bottom:8px}
+    .muted{color:var(--muted)}
+    label{font-size:13px;font-weight:600;display:block;margin-bottom:6px}
+    .input,textarea,select{width:100%;padding:10px;border-radius:10px;border:1px solid rgba(15,23,36,0.06);background:var(--glass);outline:none}
+    [data-theme='dark'] .input{border:1px solid rgba(255,255,255,0.03)}
+    .row{display:flex;gap:8px;align-items:center}
+
+    /* Buttons */
+    .btn{background:var(--accent);color:white;padding:10px 14px;border-radius:10px;border:0;cursor:pointer;display:inline-flex;align-items:center;gap:8px;transition:transform .12s,box-shadow .12s}
+    .btn:active{transform:translateY(1px)}
+    .btn.secondary{background:transparent;color:var(--text);border:1px solid rgba(15,23,36,0.06)}
+    .btn.ghost{background:transparent;border:0;color:var(--muted)}
+    .badge{display:inline-block;padding:6px 10px;border-radius:999px;font-weight:700}
+    .badge.get{background:#ecfdf5;color:#065f46}
+    .badge.post{background:#ecfeff;color:#0f766e}
+    .badge.put{background:#eff6ff;color:#1e3a8a}
+    .badge.delete{background:#fff1f2;color:#9f1239}
+
+    /* Main area */
+    .main{display:grid;grid-template-columns:1fr 420px;gap:16px}
+    .catalog-list{display:flex;flex-direction:column;gap:10px;max-height:430px;overflow:auto}
+    .book-item{display:flex;gap:12px;align-items:center;padding:10px;border-radius:10px;border:1px solid rgba(2,6,23,0.04);transition:box-shadow .14s,transform .14s}
+    .book-item:hover{transform:translateY(-3px);box-shadow:0 16px 40px rgba(2,6,23,0.06)}
+    .thumb{width:64px;height:92px;border-radius:8px;background:linear-gradient(180deg,#eee,#ddd);overflow:hidden;display:flex;align-items:center;justify-content:center}
+    .meta{flex:1}
+    .meta h4{margin:0;font-size:15px}
+    .meta p{margin:4px 0 0;color:var(--muted);font-size:13px}
+
+    /* Response panel */
+    .results{display:flex;flex-direction:column;gap:8px}
+    .results pre{background:transparent;padding:12px;border-radius:10px;overflow:auto;margin:0}
+    .results .controls{display:flex;justify-content:space-between;gap:8px}
+    .collapse-toggle{cursor:pointer;color:var(--muted);text-decoration:underline}
+
+    /* Modal */
+    .modal-backdrop{position:fixed;inset:0;background:rgba(2,6,23,0.45);display:flex;align-items:center;justify-content:center;z-index:999}
+    .modal{width:900px;background:var(--surface);padding:18px;border-radius:14px;box-shadow:var(--card-shadow);max-height:90vh;overflow:auto}
+    .grid-2{display:grid;grid-template-columns:1fr 320px;gap:12px}
+
+    /* Toasts */
+    .toasts{position:fixed;right:20px;bottom:20px;display:flex;flex-direction:column;gap:8px;z-index:2000}
+    .toast{padding:12px 14px;border-radius:10px;color:white;box-shadow:0 8px 30px rgba(2,6,23,0.4);animation:slideIn .36s}
+    .toast.success{background:linear-gradient(90deg,var(--success),#059669)}
+    .toast.error{background:linear-gradient(90deg,var(--danger),#dc2626)}
+    @keyframes slideIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+
+    /* Small helpers */
+    .help{font-size:13px;color:var(--muted)}
+    .small{font-size:13px}
+    .muted-2{color:var(--muted);font-size:13px}
+
+    /* Accessibility focus */
+    :focus{outline:3px solid rgba(37,99,235,0.18);outline-offset:2px}
+
+    /* Responsive */
+    @media (max-width:1100px){.container{grid-template-columns:1fr;}.main{grid-template-columns:1fr}.sidebar{order:2}}
+  </style>
+</head>
+<body data-theme="light">
+  <div class="container" role="application">
+    <header role="banner">
+      <div>
+        <h1>E-Library API Client</h1>
+        <p class="small">Interactive, accessible, and secure playground for testing the E-Library API.</p>
+      </div>
+      <div style="margin-left:auto;display:flex;gap:10px;align-items:center">
+        <div id="userStatus" class="card small" aria-live="polite">Not logged in</div>
+        <input id="accentPicker" type="color" title="Accent color" style="width:44px;height:40px;border-radius:8px;border:0" />
+        <button id="themeBtn" class="btn secondary" aria-pressed="false" title="Toggle theme">Toggle theme</button>
+        <button id="helpOpen" class="btn ghost">Help</button>
+      </div>
+    </header>
+
+    <aside class="sidebar" aria-label="Controls">
+      <section class="card" aria-labelledby="authHead">
+        <div id="authHead" class="title">User Authentication</div>
+        <div class="muted-2">Login to perform protected actions. Use demo accounts or register.</div>
+        <label for="email">Email</label>
+        <input id="email" class="input" placeholder="alice@example.com" aria-label="Email address" />
+        <label for="password" style="margin-top:8px">Password</label>
+        <input id="password" type="password" class="input" placeholder="•••••••" aria-label="Password" />
+        <div style="display:flex;gap:8px;margin-top:10px">
+          <button id="login" class="btn">Sign in</button>
+          <button id="logout" class="btn secondary" style="display:none">Logout</button>
+        </div>
+        <div class="help" style="margin-top:8px">Token is stored temporarily. Long tokens hidden for safety — copy on demand.</div>
+      </section>
+
+      <section class="card" aria-labelledby="composerHead">
+        <div id="composerHead" class="title">Request Composer</div>
+        <label for="method">Method</label>
+        <select id="method" class="input" aria-label="HTTP method"><option>GET</option><option>POST</option><option>PUT</option><option>DELETE</option></select>
+        <label for="endpoint" style="margin-top:8px">Endpoint</label>
+        <input id="endpoint" class="input" placeholder="/books or /auth/login" aria-label="Request endpoint" />
+        <label style="margin-top:8px">Body (JSON)</label>
+        <textarea id="body" class="input" rows="6" placeholder='{"title":"My Book"}' aria-label="Request body"></textarea>
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <button id="send" class="btn">Send</button>
+          <button id="saveReq" class="btn secondary">Save</button>
+        </div>
+        <div class="help" style="margin-top:8px">Use custom headers in the advanced view (toggle at bottom).</div>
+        <details style="margin-top:8px"><summary class="muted-2">Advanced: Headers</summary>
+          <div style="margin-top:8px">
+            <div style="display:flex;gap:8px;align-items:center"><input id="hdrName" class="input" placeholder="Header name" /><input id="hdrVal" class="input" placeholder="Value" /><button id="addHdr" class="btn secondary">Add</button></div>
+            <div id="hdrList" style="margin-top:8px"></div>
+          </div>
+        </details>
+      </section>
+
+      <section class="card" aria-labelledby="historyHead">
+        <div id="historyHead" class="title">Request History</div>
+        <div id="history" style="max-height:200px;overflow:auto;display:flex;flex-direction:column;gap:8px"></div>
+        <div class="muted-2" style="margin-top:8px">Newest at top. Replay or edit any past request.</div>
+      </section>
+
+      <section class="card">
+        <div class="title">Quick Demo</div>
+        <div class="help">Populate the UI with demo data and auto-login as a demo librarian account.</div>
+        <div style="display:flex;gap:8px;margin-top:8px"><button id="demoBtn" class="btn">Load Demo</button><button id="clearDemo" class="btn secondary">Clear</button></div>
+      </section>
+    </aside>
+
+    <main class="main" aria-live="polite">
+      <section class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div><strong>Book Catalog</strong><div class="muted-2">Search, sort and paginate the collection.</div></div>
+          <div style="display:flex;gap:8px">
+            <input id="search" class="input" placeholder="Search title, author, ISBN" />
+            <button id="searchBtn" class="btn secondary">Search</button>
+          </div>
+        </div>
+
+        <div style="margin-top:12px;display:flex;gap:12px;align-items:center">
+          <select id="sort" class="input small"><option value="new">Newest</option><option value="title">Title</option><option value="author">Author</option></select>
+          <div class="muted-2">Page <span id="pageNum">1</span></div>
+          <div style="margin-left:auto" class="row"><button id="prev" class="btn secondary">Prev</button><button id="next" class="btn secondary">Next</button></div>
+        </div>
+
+        <div class="catalog-list" id="catalog"></div>
+      </section>
+
+      <aside>
+        <section class="card results">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <div><strong>Response Viewer</strong><div class="muted-2">HTTP status and response body. Collapse to save space.</div></div>
+            <div class="row"><button id="copyBtn" class="btn secondary">Copy</button><button id="clearBtn" class="btn secondary">Clear</button></div>
+          </div>
+
+          <div style="margin-top:10px" class="results">
+            <div class="results top" style="display:flex;justify-content:space-between;align-items:center"><div id="status" class="muted-2">Status: -</div><div><span id="httpCode"></span></div></div>
+            <details open id="resDetails"><summary class="collapse-toggle">Response body (click to collapse)</summary>
+              <pre id="responseBody">{}</pre>
+            </details>
+          </div>
+        </section>
+
+        <section class="card">
+          <div class="title">Editor / Actions</div>
+          <div class="muted-2">Select a book then click Edit to open the editor. Use Download to fetch a watermarked copy.</div>
+          <div style="display:flex;gap:8px;margin-top:8px">
+            <button id="editBtn" class="btn secondary">Edit Selected</button>
+            <button id="downloadBtn" class="btn">Download</button>
+            <button id="refreshBtn" class="btn ghost">Refresh</button>
+          </div>
+          <div id="selectedInfo" style="margin-top:8px" class="muted-2">No book selected</div>
+        </section>
+      </aside>
+    </main>
+
+    <div class="toasts" id="toasts" aria-live="polite"></div>
+  </div>
+
+  <!-- Editor modal template -->
+  <template id="editorTemplate">
+    <div class="modal-backdrop">
+      <div class="modal" role="dialog" aria-modal="true" aria-label="Edit book">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <h3>Edit Book</h3>
+          <div class="row"><button id="closeEditor" class="btn secondary">Close</button></div>
+        </div>
+        <div class="grid-2">
+          <div>
+            <label>Title</label>
+            <input id="fTitle" class="input" />
+            <label style="margin-top:8px">Author</label>
+            <input id="fAuthor" class="input" />
+            <label style="margin-top:8px">ISBN</label>
+            <input id="fISBN" class="input" />
+            <label style="margin-top:8px">Category</label>
+            <input id="fCategory" class="input" />
+            <label style="margin-top:8px">Description</label>
+            <textarea id="fDescription" class="input" rows="5"></textarea>
+          </div>
+          <div>
+            <label>Cover image</label>
+            <div style="display:flex;gap:8px;align-items:center">
+              <div id="fCoverPreview" class="thumb">No image</div>
+              <div style="flex:1"><input id="fCover" type="file" accept="image/*" /></div>
+            </div>
+            <label style="margin-top:8px">Published Year</label>
+            <input id="fYear" class="input" />
+            <label style="margin-top:8px">Pages</label>
+            <input id="fPages" class="input" />
+            <label style="margin-top:8px">Tags (comma separated)</label>
+            <input id="fTags" class="input" />
+            <div style="display:flex;gap:8px;margin-top:12px"><button id="saveEdit" class="btn">Save</button><button id="resetEdit" class="btn secondary">Reset</button></div>
+            <div id="editorError" class="muted-2" style="margin-top:8px;color:var(--danger)"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </template>
+
+  <!-- Help modal (simple) -->
+  <template id="helpTpl">
+    <div class="modal-backdrop">
+      <div class="modal" role="dialog" aria-modal="true">
+        <h3>Quick Tour</h3>
+        <p class="muted-2">This client lets you authenticate, compose requests, browse catalog entries, edit book metadata, upload covers, and download watermarked PDFs. Use demo mode to try without a backend.</p>
+        <ol>
+          <li>Login or click "Load Demo" to auto-fill demo data.</li>
+          <li>Use the Request Composer to test endpoints (methods, body, headers).</li>
+          <li>Browse the Book Catalog and Edit or Download a book.</li>
+        </ol>
+        <div style="display:flex;justify-content:flex-end;margin-top:12px"><button id="closeHelp" class="btn">Close</button></div>
+      </div>
+    </div>
+  </template>
+
+  <script>
+    (function(){
+      // ------------------ Utility helpers ------------------
+      const $ = s => document.querySelector(s);
+      const $$ = s => Array.from(document.querySelectorAll(s));
+      const escapeHtml = s => String(s||'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'})[c]);
+      function show(el, v=true){ el.style.display = v? 'block':'none'; }
+      function setText(sel, txt){ const el = $(sel); if(el) el.textContent = txt; }
+
+      // State
+      const state = {
+        token: localStorage.getItem('api_token') || '',
+        me: null,
+        headers: {},
+        history: JSON.parse(localStorage.getItem('api_history')||'[]'),
+        books: [],
+        page: 1,
+        selected: null,
+        demo: false
+      };
+
+      // Theme
+      const body = document.body;
+      const themeBtn = $('#themeBtn');
+      const accentPicker = $('#accentPicker');
+      const applyAccent = hex => { document.documentElement.style.setProperty('--accent', hex); document.documentElement.style.setProperty('--accent-2', hex); localStorage.setItem('accent', hex); };
+      accentPicker.value = localStorage.getItem('accent') || '#2563eb'; applyAccent(accentPicker.value);
+      accentPicker.addEventListener('input', e=>applyAccent(e.target.value));
+      themeBtn.addEventListener('click', ()=>{ const t = body.getAttribute('data-theme')==='dark'?'light':'dark'; body.setAttribute('data-theme', t); localStorage.setItem('theme', t); themeBtn.setAttribute('aria-pressed', t==='dark'); });
+      const savedTheme = localStorage.getItem('theme') || 'light'; body.setAttribute('data-theme', savedTheme); themeBtn.setAttribute('aria-pressed', savedTheme==='dark');
+
+      // Toasts
+      const toasts = $('#toasts');
+      function toast(msg, type='success', ttl=3000){ const d = document.createElement('div'); d.className = 'toast '+(type==='error'?'error':'success'); d.textContent = msg; toasts.appendChild(d); setTimeout(()=>d.remove(), ttl); }
+
+      // Fetch wrapper with JSON parsing and error handling
+      async function apiFetch(path, opts={}){
+        const headers = Object.assign({}, opts.headers || {});
+        if(state.token) headers['Authorization'] = 'Bearer '+state.token;
+        const cfg = Object.assign({ method: 'GET', headers }, opts);
+        if(cfg.body && typeof cfg.body === 'object' && !(cfg.body instanceof FormData)){
+          cfg.headers['Content-Type'] = 'application/json'; cfg.body = JSON.stringify(cfg.body);
+        }
+        try{
+          setText('#status', 'Status: loading...');
+          const res = await fetch(path, cfg);
+          const txt = await res.text();
+          let body = null; try{ body = txt? JSON.parse(txt): null }catch(e){ body = txt }
+          setText('#status', 'Status: '+(res.ok ? 'OK' : 'Error') ); setText('#httpCode', res.status);
+          $('#responseBody').textContent = JSON.stringify(body, null, 2) || '{}';
+          return { ok: res.ok, status: res.status, body };
+        }catch(e){ setText('#status','Status: network error'); $('#responseBody').textContent = String(e); return { ok:false, status:0, body: String(e) } }
+      }
+
+      // ------------------ Auth ------------------
+      const email = $('#email'), password = $('#password'), loginBtn = $('#login'), logoutBtn = $('#logout');
+      const userStatus = $('#userStatus');
+      function setUserUI(){ if(state.me){ userStatus.textContent = `Logged in as ${state.me.email} (${state.me.role||'User'})`; show(logoutBtn,true); } else { userStatus.textContent = 'Not logged in'; show(logoutBtn,false); } }
+
+      async function whoami(){ if(!state.token) { state.me = null; setUserUI(); return; } const r = await apiFetch('/users/me'); if(r.ok){ state.me = r.body; setUserUI(); } else { state.me = null; setUserUI(); } }
+
+      loginBtn.addEventListener('click', async ()=>{
+        const em = email.value.trim(); const pw = password.value; if(!em || !pw){ toast('Enter email and password','error'); return; }
+        const r = await apiFetch('/auth/login', { method: 'POST', body: { email: em, password: pw } });
+        if(r.ok && r.body && r.body.token){ state.token = r.body.token; localStorage.setItem('api_token', state.token); whoami(); toast('Logged in'); } else { toast('Login failed','error'); }
+      });
+
+      logoutBtn.addEventListener('click', ()=>{ state.token=''; localStorage.removeItem('api_token'); state.me=null; setUserUI(); toast('Logged out'); });
+
+      // ------------------ Composer and history ------------------
+      const method = $('#method'), endpoint = $('#endpoint'), bodyField = $('#body'), sendBtn = $('#send');
+      const hdrName = $('#hdrName'), hdrVal = $('#hdrVal'), addHdr = $('#addHdr'), hdrList = $('#hdrList');
+
+      addHdr.addEventListener('click', ()=>{ const k = hdrName.value.trim(); const v = hdrVal.value.trim(); if(!k){ toast('Header name required','error'); return; } state.headers[k]=v; hdrName.value=''; hdrVal.value=''; renderHeaders(); });
+      function renderHeaders(){ hdrList.innerHTML = Object.keys(state.headers).map(k=>`<div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><div><strong>${k}</strong>: ${state.headers[k]}</div><div><button data-key='${k}' class='btn secondary small removeHdr'>Remove</button></div></div>`).join(''); $$('.removeHdr').forEach(b=>b.addEventListener('click', ()=>{ delete state.headers[b.getAttribute('data-key')]; renderHeaders(); })); }
+      renderHeaders();
+
+      sendBtn.addEventListener('click', async ()=>{
+        let bodyVal = null;
+        if(bodyField.value.trim()){ try{ bodyVal = JSON.parse(bodyField.value) }catch(e){ toast('Body must be valid JSON','error'); return; } }
+        const headers = Object.assign({}, state.headers);
+        const path = endpoint.value.trim() || '/books';
+        const m = method.value;
+        const r = await apiFetch(path, { method: m, body: bodyVal, headers });
+        state.history.unshift({ method: m, endpoint: path, time: new Date().toLocaleString() }); localStorage.setItem('api_history', JSON.stringify(state.history)); renderHistory();
+        if(r.ok) toast('Request succeeded'); else toast('Request failed','error');
+      });
+
+      function renderHistory(){ const h = $('#history'); h.innerHTML = state.history.slice(0,60).map((it,idx)=>`<div style='display:flex;justify-content:space-between;gap:8px;padding:8px;border-radius:8px;background:linear-gradient(180deg,rgba(0,0,0,0.02),transparent)'><div><span class='badge ${it.method.toLowerCase()}'>${it.method}</span> <strong>${escapeHtml(it.endpoint)}</strong><div class='muted-2'>${it.time}</div></div><div style='display:flex;gap:6px'><button data-idx='${idx}' class='btn secondary replay'>Replay</button><button data-idx-edit='${idx}' class='btn secondary'>Edit</button></div></div>`).join(''); $$('.replay').forEach(b=>b.addEventListener('click', ()=>{ const it = state.history[b.getAttribute('data-idx')]; method.value = it.method; endpoint.value = it.endpoint; bodyField.value=''; toast('Loaded request'); })); $$('.replay').forEach(()=>{}); $$('.replay').forEach(()=>{}); $$('.replay').forEach(b=>b.addEventListener('click', ()=>{})); $$('.replay').forEach(b=>b.addEventListener('click', ()=>{}));
+        // attach edit handlers
+        $$('.replay').forEach((btn,i)=>btn.addEventListener('click', ()=>{ const it = state.history[btn.getAttribute('data-idx')]; method.value = it.method; endpoint.value = it.endpoint; }));
+      }
+      renderHistory();
+
+      // ------------------ Catalog ------------------
+      const catalog = $('#catalog'), search = $('#search'), searchBtn = $('#searchBtn'), prev = $('#prev'), next = $('#next'), pageNum = $('#pageNum');
+      async function loadCatalog(){ if(state.demo){ // demo data
+          state.books = demoBooks(); renderCatalog(); return; }
+        const q = search.value.trim(); const r = await apiFetch('/books?q='+encodeURIComponent(q)+'&page='+state.page+'&limit=10'); if(r.ok && Array.isArray(r.body)){ state.books = r.body; renderCatalog(); } }
+      searchBtn.addEventListener('click', ()=>{ state.page=1; loadCatalog(); pageNum.textContent = state.page; }); prev.addEventListener('click', ()=>{ if(state.page>1){ state.page--; loadCatalog(); pageNum.textContent=state.page } }); next.addEventListener('click', ()=>{ state.page++; loadCatalog(); pageNum.textContent=state.page });
+
+      function renderCatalog(){ catalog.innerHTML = state.books.map(b=>`<div class='book-item' data-id='${b._id||b.id||''}' tabindex='0' role='button' aria-pressed='false'><div class='thumb'>${b.coverImage?`<img src='/${b.coverImage}' style='width:100%;height:100%;object-fit:cover' alt='Cover of ${escapeHtml(b.title)}'>`:'<i class="fa-solid fa-book"></i>'}</div><div class='meta'><h4>${escapeHtml(b.title||'Untitled')}</h4><p>${escapeHtml(b.author||'Unknown')} • ${escapeHtml(b.category||'')}</p></div><div style="display:flex;gap:8px"><button class='btn secondary selectBtn'>Select</button><button class='btn' data-id='${b._id||b.id||''}' data-action='download'>Download</button></div></div>`).join('');
+        $$('.book-item').forEach(el=>el.addEventListener('click', ()=>{ const id = el.getAttribute('data-id'); selectBook(id); }));
+        $$('.selectBtn').forEach(btn=>btn.addEventListener('click', (e)=>{ e.stopPropagation(); const id = btn.closest('.book-item').getAttribute('data-id'); selectBook(id); }));
+        $$('.book-item button[data-action="download"]').forEach(b=>b.addEventListener('click', async (e)=>{ e.stopPropagation(); const id = b.getAttribute('data-id'); await downloadBook(id); }));
+      }
+
+      function selectBook(id){ state.selected = state.books.find(b=> (b._id||b.id)==id); $('#selectedInfo').textContent = state.selected ? `${state.selected.title} — ${state.selected.author}` : 'No book selected'; }
+
+      async function downloadBook(id){ if(!id){ toast('Select a book first','error'); return; } const res = await fetch('/download/'+id, { headers: state.token?{ 'Authorization':'Bearer '+state.token }:{} }); if(!res.ok){ toast('Download failed','error'); return; } const blob = await res.blob(); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = (state.selected && state.selected.title ? state.selected.title.replace(/[^a-z0-9]/gi,'_') : 'book')+'.pdf'; document.body.appendChild(a); a.click(); a.remove(); toast('Download started'); }
+
+      // ------------------ Editor ------------------
+      const editBtn = $('#editBtn'), downloadBtn = $('#downloadBtn'), refreshBtn = $('#refreshBtn');
+      editBtn.addEventListener('click', ()=>{ if(!state.selected){ toast('Select a book to edit','error'); return; } openEditor(state.selected); });
+      refreshBtn.addEventListener('click', ()=>loadCatalog());
+
+      function openEditor(book){ const tpl = document.getElementById('editorTemplate').content.cloneNode(true); document.body.appendChild(tpl); // wire
+        $('#fTitle').value = book.title||''; $('#fAuthor').value = book.author||''; $('#fISBN').value = book.isbn||''; $('#fCategory').value = book.category||''; $('#fDescription').value = book.description||''; $('#fYear').value = book.publishedYear||''; $('#fPages').value = book.pages||''; $('#fTags').value = (book.tags||[]).join(', ');
+        if(book.coverImage){ $('#fCoverPreview').innerHTML = `<img src='/${book.coverImage}' style='width:100%;height:100%;object-fit:cover' alt='Cover'>`; }
+        document.getElementById('closeEditor').addEventListener('click', ()=>document.querySelector('.modal-backdrop').remove());
+        document.getElementById('saveEdit').addEventListener('click', async ()=>{
+          // collect minimal payload
+          const payload = {};
+          if($('#fTitle').value !== (book.title||'')) payload.title = $('#fTitle').value;
+          if($('#fAuthor').value !== (book.author||'')) payload.author = $('#fAuthor').value;
+          if($('#fISBN').value !== (book.isbn||'')) payload.isbn = $('#fISBN').value;
+          if($('#fCategory').value !== (book.category||'')) payload.category = $('#fCategory').value;
+          if($('#fDescription').value !== (book.description||'')) payload.description = $('#fDescription').value;
+          if($('#fYear').value !== (book.publishedYear||'')) payload.publishedYear = $('#fYear').value;
+          if($('#fPages').value !== (book.pages||'')) payload.pages = $('#fPages').value;
+          const tags = $('#fTags').value.split(',').map(s=>s.trim()).filter(Boolean);
+          if(JSON.stringify(tags) !== JSON.stringify(book.tags||[])) payload.tags = tags;
+          // file upload
+          const file = $('#fCover').files && $('#fCover').files[0]; if(file){ if(file.size > 5*1024*1024){ $('#editorError').textContent = 'Image too large (>5MB)'; return; } const fd = new FormData(); fd.append('image', file, file.name); const up = await fetch('/upload/image', { method: 'POST', body: fd, headers: state.token?{ 'Authorization':'Bearer '+state.token }:{} }); if(!up.ok){ $('#editorError').textContent = 'Upload failed'; return; } const upj = await up.json(); payload.coverImage = upj.path || upj.filename; }
+          const r = await apiFetch('/books/'+(book._id||book.id), { method: 'PUT', body: payload }); if(r.ok){ toast('Book updated'); document.querySelector('.modal-backdrop').remove(); loadCatalog(); } else { $('#editorError').textContent = 'Update failed'; }
+        });
+      }
+
+      // ------------------ Help and demo ------------------
+      const demoBtn = $('#demoBtn'), clearDemo = $('#clearDemo'), helpOpen = $('#helpOpen');
+      demoBtn.addEventListener('click', ()=>{ state.demo = true; state.token = 'demo-token'; localStorage.setItem('api_token','demo-token'); state.me = { email: 'demo@library', role: 'librarian' }; setUserUI(); loadCatalog(); toast('Demo loaded'); });
+      clearDemo.addEventListener('click', ()=>{ state.demo=false; state.token=''; localStorage.removeItem('api_token'); state.me = null; setUserUI(); loadCatalog(); toast('Demo cleared'); });
+
+      helpOpen.addEventListener('click', ()=>{ const tpl = document.getElementById('helpTpl').content.cloneNode(true); document.body.appendChild(tpl); document.getElementById('closeHelp').addEventListener('click', ()=>document.querySelector('.modal-backdrop').remove()); });
+
+      // ------------------ Misc UI wiring ------------------
+      $('#search').addEventListener('keypress', e=>{ if(e.key==='Enter') searchBtn.click(); });
+      $('#searchBtn').addEventListener('click', ()=>{ state.page=1; loadCatalog(); });
+      $('#copyBtn').addEventListener('click', ()=>{ navigator.clipboard.writeText($('#responseBody').textContent||''); toast('Copied'); });
+      $('#clearBtn').addEventListener('click', ()=>{ $('#responseBody').textContent='{}'; setText('#status','Status: -'); setText('#httpCode',''); });
+
+      // ------------------ Demo data creators ------------------
+      function demoBooks(){ return [
+        { id: 'd1', title:'The Node Way', author:'A. Dev', category:'Programming', coverImage:'uploads/images/demo1.jpg', publishedYear:2022, pages:312, tags:['node','js'] },
+        { id: 'd2', title:'Secrets of PDFs', author:'B. Secure', category:'Security', coverImage:'uploads/images/demo2.jpg', publishedYear:2021, pages:208, tags:['pdf','security'] },
+        { id: 'd3', title:'Modern UX Design', author:'C. Designer', category:'Design', coverImage:'', publishedYear:2023, pages:180 }
+      ]; }
+
+      // ------------------ Initialization ------------------
+      function init(){ // wire some event hooks
+        setUserUI(); loadCatalog(); renderHistory();
+      }
+      init();
+
+      // Expose for debug
+      window.apiClient = { state, loadCatalog, apiFetch };
+    })();
+  </script>
+</body>
+</html>

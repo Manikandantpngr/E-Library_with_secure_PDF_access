@@ -1,0 +1,46 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Reader - E-Library</title>
+    <style>
+      body{margin:0;font-family:Arial,Helvetica,sans-serif}
+      #top{padding:.5rem;background:#222;color:#fff;display:flex;gap:.5rem;align-items:center}
+      #viewer{width:100%;height:calc(100vh - 48px);border:0}
+      input,button{padding:.4rem;margin-right:.4rem}
+    </style>
+  </head>
+  <body>
+    <div id="top">
+      <input id="token" placeholder="JWT token (paste here)" style="flex:1" />
+      <input id="bookId" placeholder="Book ID" style="width:240px" />
+      <button onclick="openBook()">Open</button>
+    </div>
+    <iframe id="viewer"></iframe>
+
+    <script>
+      async function openBook(){
+        const token = document.getElementById('token').value.trim();
+        const bookId = document.getElementById('bookId').value.trim();
+        if(!token || !bookId) return alert('Provide token and book id');
+
+        try{
+          const res = await fetch('/download/' + encodeURIComponent(bookId), {
+            headers: { 'Authorization': 'Bearer ' + token }
+          });
+          if(!res.ok){
+            const j = await res.json().catch(()=>null);
+            return alert('Failed to fetch PDF: ' + (j?.message || res.status));
+          }
+          const blob = await res.blob();
+          const url = URL.createObjectURL(blob);
+          const viewer = document.getElementById('viewer');
+          viewer.src = url;
+        }catch(err){
+          alert('Error: ' + err.message);
+        }
+      }
+    </script>
+  </body>
+</html>
